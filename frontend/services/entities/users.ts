@@ -46,13 +46,13 @@ export default {
       (response) => helpers.addGravatarUrlToResource(response.user) // TODO: confirm
     );
   },
-  deleteSessions: (user: IDeleteSessionsUser) => {
+  deleteSessions: (user: IUser) => {
     const { USER_SESSIONS } = endpoints;
     const path = USER_SESSIONS(user.id);
 
     return sendRequest("DELETE", path);
   },
-  destroy: (user: IDestroyUser) => {
+  destroy: (user: IUser) => {
     const { USERS } = endpoints;
     const path = `${USERS}/${user.id}`;
 

@@ -21,7 +21,7 @@ interface ICellProps {
     value: any;
   };
   row: {
-    original: IUser | IInvite;
+    original: IUser;
   };
 }
 
@@ -48,7 +48,7 @@ interface IUserTableData {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
-  actionSelectHandler: (value: string, user: IUser | IInvite) => void,
+  actionSelectHandler: (value: string, user: IUser) => void,
   isPremiumTier: boolean | undefined
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [

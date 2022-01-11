@@ -29,7 +29,7 @@ import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
 import DeleteUserForm from "./components/DeleteUserForm";
 import ResetPasswordModal from "./components/ResetPasswordModal";
 import ResetSessionsModal from "./components/ResetSessionsModal";
-import { NewUserType } from "./components/UserForm/UserForm";
+import { IFormData, NewUserType } from "./components/UserForm/UserForm";
 import CreateUserModal from "./components/CreateUserModal";
 import EditUserModal from "./components/EditUserModal";
 
@@ -94,6 +94,8 @@ const UserManagementPage = (): JSX.Element => {
     }
   );
 
+  console.log("users: ", users);
+
   // TODO: IMPLEMENT
   // Note: If the page is refreshed, `isPremiumTier` will be false at `componentDidMount` because
   // `config` will not have been loaded at that point. Accordingly, we need this lifecycle hook so
@@ -121,7 +123,7 @@ const UserManagementPage = (): JSX.Element => {
     false
   );
   const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
-  const [userEditing, setUserEditing] = useState<any>(null);
+  const [userEditing, setUserEditing] = useState<IUser>();
   const [createUserErrors, setCreateUserErrors] = useState<any>({
     DEFAULT_CREATE_USER_ERRORS,
   });
@@ -138,34 +140,38 @@ const UserManagementPage = (): JSX.Element => {
   }, [showCreateUserModal, setShowCreateUserModal]);
 
   const toggleDeleteUserModal = useCallback(
-    (user?: IUser | IInvite) => {
+    (user?: IUser) => {
+      if (!user) return;
       setShowDeleteUserModal(!showDeleteUserModal);
-      setUserEditing(!showDeleteUserModal ? user : null);
+      setUserEditing(user);
     },
     [showDeleteUserModal, setShowDeleteUserModal, setUserEditing]
   );
 
   // added IInvite and undefined due to toggleeditusermodal being used later
   const toggleEditUserModal = useCallback(
-    (user?: IUser | IInvite) => {
+    (user?: IUser) => {
       setShowEditUserModal(!showEditUserModal);
-      setUserEditing(!showEditUserModal ? user : null);
+      if (!user) return;
+      setUserEditing(user);
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );
 
   const toggleResetPasswordUserModal = useCallback(
-    (user?: IUser | IInvite) => {
+    (user?: IUser) => {
+      if (!user) return;
       setShowResetPasswordModal(!showResetPasswordModal);
-      setUserEditing(!showResetPasswordModal ? user : null);
+      setUserEditing(user);
     },
     [showResetPasswordModal, setShowResetPasswordModal, setUserEditing]
   );
 
   const toggleResetSessionsUserModal = useCallback(
-    (user?: IUser | IInvite) => {
+    (user?: IUser) => {
+      if (!user) return;
       setShowResetSessionsModal(!showResetSessionsModal);
-      setUserEditing(!showResetSessionsModal ? user : null);
+      setUserEditing(user);
     },
     [showResetSessionsModal, setShowResetSessionsModal, setUserEditing]
   );
@@ -213,7 +219,7 @@ const UserManagementPage = (): JSX.Element => {
     });
   };
 
-  const onActionSelect = (value: string, user: IUser | IInvite) => {
+  const onActionSelect = (value?: string, user?: IUser) => {
     switch (value) {
       case "edit":
         toggleEditUserModal(user);
@@ -236,12 +242,10 @@ const UserManagementPage = (): JSX.Element => {
     return null;
   };
 
-  const getUser = (type: string, id: number) => {
-    let userData;
-    if (type === "user") {
-      userData = users?.find((user) => user.id === id);
-    } else {
-      userData = invites?.find((invite) => invite.id === id);
+  const getUserData = (id: number): IUser => {
+    const userData: IUser | undefined = users?.find((user) => user.id === id);
+    if (!userData) {
+      throw new Error("getUserData(): User not found");
     }
     return userData;
   };
@@ -323,53 +327,35 @@ const UserManagementPage = (): JSX.Element => {
     }
   };
 
-  const onEditUser = (formData: any) => {
-    const userData = getUser(userEditing.type, userEditing.id);
+  const onEditUser = async (formData: IFormData) => {
+    if (!userEditing) return;
 
-    if (userEditing.type === "invite") {
-      return (
-        userData &&
-        invitesAPI
-          .update(userData, formData)
-          .then(() => {
-            dispatch(
-              renderFlash("success", `Successfully edited ${userEditing?.name}`)
-            );
-          })
-          .then(() => refetchInvites())
-          .catch(() => {
-            dispatch(
-              renderFlash(
-                "error",
-                `Could not edit ${userEditing?.name}. Please try again.`
-              )
-            );
-          })
-          .finally(() => {
-            toggleEditUserModal();
-          })
-      );
-    }
+    const userData = getUserData(userEditing.id);
 
-    if (currentUser?.id === userEditing.id) {
-      return usersAPI
-        .update(userData, formData)
-        .then(() => {
-          dispatch(
-            renderFlash("success", `Successfully edited ${userEditing?.name}`)
-          );
-        })
-        .then(() => refetchUsers())
-        .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              `Could not edit ${userEditing?.name}. Please try again.`
-            )
-          );
-        })
-        .finally(() => toggleEditUserModal());
-    }
+    // if (userEditing.type === "invite") {
+    //   return (
+    //     userData &&
+    //     invitesAPI
+    //       .update(userData, formData)
+    //       .then(() => {
+    //         dispatch(
+    //           renderFlash("success", `Successfully edited ${userEditing?.name}`)
+    //         );
+    //       })
+    //       .then(() => refetchInvites())
+    //       .catch(() => {
+    //         dispatch(
+    //           renderFlash(
+    //             "error",
+    //             `Could not edit ${userEditing?.name}. Please try again.`
+    //           )
+    //         );
+    //       })
+    //       .finally(() => {
+    //         toggleEditUserModal();
+    //       })
+    //   );
+    // }
 
     let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
 
@@ -377,7 +363,7 @@ const UserManagementPage = (): JSX.Element => {
       userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.sender_address} to ${formData.email}`;
     }
 
-    return usersAPI
+    usersAPI
       .update(userData, formData)
       .then(() => {
         dispatch(renderFlash("success", userUpdatedFlashMessage));
@@ -397,50 +383,30 @@ const UserManagementPage = (): JSX.Element => {
   };
 
   const onDeleteUser = () => {
-    if (userEditing.type === "invite") {
-      invitesAPI
-        .destroy(userEditing)
-        .then(() => {
-          dispatch(
-            renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
-          );
-        })
-        .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              `Could not delete ${userEditing?.name}. Please try again.`
-            )
-          );
-        })
-        .finally(() => {
-          toggleDeleteUserModal();
-          refetchInvites();
-        });
-    } else {
-      usersAPI
-        .destroy(userEditing)
-        .then(() => {
-          dispatch(
-            renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
-          );
-        })
-        .catch(() => {
-          dispatch(
-            renderFlash(
-              "error",
-              `Could not delete ${userEditing?.name}. Please try again.`
-            )
-          );
-        })
-        .finally(() => {
-          toggleDeleteUserModal();
-          refetchUsers();
-        });
-    }
+    if (!userEditing) return;
+    usersAPI
+      .destroy(userEditing)
+      .then(() => {
+        dispatch(
+          renderFlash("success", `Successfully deleted ${userEditing?.name}.`)
+        );
+      })
+      .catch(() => {
+        dispatch(
+          renderFlash(
+            "error",
+            `Could not delete ${userEditing?.name}. Please try again.`
+          )
+        );
+      })
+      .finally(() => {
+        toggleDeleteUserModal();
+        refetchUsers();
+      });
   };
 
   const onResetSessions = () => {
+    if (!userEditing) return;
     const isResettingCurrentUser = currentUser?.id === userEditing.id;
 
     usersAPI
@@ -477,9 +443,9 @@ const UserManagementPage = (): JSX.Element => {
   };
 
   const renderEditUserModal = () => {
-    if (!showEditUserModal) return null;
+    if (!showEditUserModal || !userEditing) return null;
 
-    const userData = getUser(userEditing.type, userEditing.id);
+    const userData = getUserData(userEditing.id);
 
     return (
       <Modal
@@ -528,7 +494,7 @@ const UserManagementPage = (): JSX.Element => {
   };
 
   const renderDeleteUserModal = () => {
-    if (!showDeleteUserModal) return null;
+    if (!showDeleteUserModal || !userEditing) return null;
 
     return (
       <Modal
@@ -546,7 +512,7 @@ const UserManagementPage = (): JSX.Element => {
   };
 
   const renderResetPasswordModal = () => {
-    if (!showResetPasswordModal) return null;
+    if (!showResetPasswordModal || !userEditing) return null;
 
     return (
       <ResetPasswordModal
@@ -559,7 +525,7 @@ const UserManagementPage = (): JSX.Element => {
   };
 
   const renderResetSessionsModal = () => {
-    if (!showResetSessionsModal) return null;
+    if (!showResetSessionsModal || !userEditing) return null;
 
     return (
       <ResetSessionsModal
